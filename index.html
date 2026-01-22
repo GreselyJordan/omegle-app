@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NeoConnect - Anti-Collision</title>
+    <title>NeoConnect - Final Fix</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=VT323&display=swap" rel="stylesheet">
     <style>
-        /* --- ESTILOS RETRO (Iguales que antes) --- */
+        /* --- ESTILOS (IGUAL QUE ANTES) --- */
         :root {
             --bg-color: #0f172a;
             --card-bg: #1e293b;
@@ -71,12 +71,11 @@
         .main-btn:disabled { opacity: 0.6; filter: grayscale(1); }
         .status-text { color: #94a3b8; font-size: 0.85rem; text-align: center; min-height: 20px; font-family: monospace;}
         
-        /* LOGS EN PANTALLA (NUEVO) */
         #debug-log {
             width: 90%; max-width: 600px; height: 60px; overflow-y: scroll;
             background: rgba(0,0,0,0.5); border: 1px solid #333; color: #0f0;
             font-family: 'VT323', monospace; font-size: 0.8rem; padding: 5px;
-            margin-bottom: 10px; display: none; /* Se activa si hay error */
+            margin-bottom: 10px; display: none;
         }
 
         /* CHAT */
@@ -98,7 +97,7 @@
 </head>
 <body>
 
-    <h1>NeoConnect <span style="font-size: 0.6em; color: #0f0; font-family: 'VT323';">SYNC-FIX</span></h1>
+    <h1>NeoConnect <span style="font-size: 0.6em; color: #0f0; font-family: 'VT323';">Final V.2.2</span></h1>
 
     <div class="main-container">
         <div class="video-card">
@@ -134,7 +133,6 @@
     </div>
 
     <script>
-        // TU SERVIDOR
         const SERVER_URL = 'backend-omegle-17xd.onrender.com';
         
         const peerConfig = {
@@ -142,7 +140,7 @@
             port: 443,
             path: '/myapp',
             secure: true,
-            debug: 2, // Muestra errores en consola
+            debug: 0, // Desactivamos logs internos de PeerJS para limpiar
             config: {
                 iceServers: [
                     { urls: 'stun:stun1.l.google.com:19302' },
@@ -175,7 +173,6 @@
             debugLog.scrollTop = debugLog.scrollHeight;
         }
 
-        // INICIO AUTOMÁTICO
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true })
             .then(stream => {
                 localStream = stream;
@@ -196,14 +193,10 @@
                 log("Mi ID: " + id);
             });
             
-            // ALGUIEN ME LLAMA (YO SOY EL RECEPTOR)
             peer.on('call', call => {
                 log("¡Llamada entrante recibida!");
-                
-                // Si yo estaba buscando activamente, DEJO DE BUSCAR para contestar
                 isSearching = false; 
                 statusMsg.innerText = "Conectando...";
-                
                 gestionarLlamada(call);
             });
 
@@ -214,9 +207,8 @@
 
             peer.on('error', err => {
                 log("Error Peer: " + err.type);
-                if(err.type === 'peer-unavailable') {
-                    // Si falla la conexión, reintentamos suavemente si estábamos buscando
-                    if(isSearching) setTimeout(buscarPareja, 2000);
+                if(err.type === 'peer-unavailable' && isSearching) {
+                    setTimeout(buscarPareja, 2000);
                 }
             });
         }
@@ -224,7 +216,7 @@
         async function buscarPareja() {
             if (!peer || !peer.id) return;
             
-            isSearching = true; // Marcar que estoy buscando
+            isSearching = true; 
             tvOverlay.style.display = 'block'; 
             statusMsg.innerText = "Buscando...";
             btnStart.disabled = true;
@@ -238,9 +230,9 @@
 
                 if (extraños.length === 0) {
                     statusMsg.innerText = "Esperando usuarios...";
-                    log("Nadie online. Reintentando en 3s...");
+                    log("Nadie online. Reintentando...");
                     setTimeout(() => {
-                        if(isSearching) buscarPareja(); // Loop de búsqueda
+                        if(isSearching) buscarPareja(); 
                     }, 3000);
                     return;
                 }
@@ -248,17 +240,14 @@
                 log(`Encontrados: ${extraños.length} usuarios.`);
                 const randomId = extraños[Math.floor(Math.random() * extraños.length)];
                 
-                // --- TRUCO ANTI-COLISIÓN ---
-                // Esperamos un tiempo aleatorio entre 0 y 2 segundos antes de llamar.
-                // Si el otro llama primero durante esta espera, mi evento 'call' saltará y cancelaré esto.
+                // Espera Anti-Colisión
                 const randomDelay = Math.floor(Math.random() * 2000); 
-                log(`Esperando ${randomDelay}ms para llamar...`);
+                log(`Esperando ${randomDelay}ms...`);
                 statusMsg.innerText = "Sincronizando...";
 
                 setTimeout(() => {
-                    // Verificamos si alguien me llamó mientras esperaba
                     if (!isSearching || currentCall) {
-                        log("Alguien me llamó primero. Cancelo mi llamada.");
+                        log("Cancelando llamada (ocupado).");
                         return;
                     }
 
@@ -277,42 +266,53 @@
         }
 
         function gestionarLlamada(call) {
-            // Si ya tengo llamada, cierro la nueva (ocupado)
             if (currentCall && currentCall.peer !== call.peer) {
                 call.close();
                 return;
             }
 
             currentCall = call;
-            log("Procesando llamada...");
             
-            // IMPORTANTE: Responder a la llamada
             call.answer(localStream);
             
             call.on('stream', remoteStream => {
-                log("STREAM DE VIDEO RECIBIDO");
-                
-                // Forzar reproducción por si el navegador se duerme
                 const videoElement = document.getElementById('remote-video');
+                
+                // --- SOLUCIÓN DEL ERROR ---
+                // Si el video ya está cargado con este stream, NO hacer nada
+                if (videoElement.srcObject === remoteStream) return;
+
+                log("VIDEO RECIBIDO (Intentando play...)");
                 videoElement.srcObject = remoteStream;
-                videoElement.play().catch(e => log("Error autoplay: " + e));
+                
+                // Reproducir con manejo de errores seguro
+                const playPromise = videoElement.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        if (error.name === 'AbortError') {
+                            // Este es el error que te salía. Lo ignoramos porque 
+                            // significa que el video ya se está reproduciendo bien.
+                            console.log("Auto-play interrumpido (normal).");
+                        } else {
+                            log("Error autoplay: " + error);
+                        }
+                    });
+                }
 
                 tvOverlay.style.display = 'none';
                 mostrarInterfazConectado();
             });
             
-            call.on('error', err => log("Error en llamada: " + err));
+            call.on('error', err => log("Error Call: " + err));
             call.on('close', cortarLlamada);
         }
 
         function gestionarChat(conn) {
             currentDataConn = conn;
             conn.on('open', () => { 
-                log("Chat abierto OK"); 
                 chatWindow.innerHTML = ''; 
             });
             conn.on('data', data => { agregarMensaje(data, 'them'); });
-            conn.on('error', err => log("Error Chat: " + err));
         }
 
         function enviarMensaje() {
@@ -332,12 +332,13 @@
         }
 
         function mostrarInterfazConectado() {
-            isSearching = false; // Dejamos de buscar
+            if(!isSearching) return; // Evitar parpadeos
+            isSearching = false; 
             btnStart.style.display = 'none';
             btnStop.style.display = 'block';
             chatSection.style.display = 'flex';
             statusMsg.innerText = "CONECTADO";
-            log("Conexión establecida exitosamente.");
+            log("Conexión Exitosa.");
             setTimeout(() => { chatSection.scrollIntoView({ behavior: 'smooth' }); }, 500);
         }
 
@@ -358,7 +359,7 @@
             
             btnStart.disabled = false;
             btnStart.style.opacity = "1";
-            log("Llamada finalizada.");
+            log("Fin de llamada.");
         }
     </script>
 </body>
