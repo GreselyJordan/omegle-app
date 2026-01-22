@@ -2,15 +2,15 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeoConnect - Random Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NeoConnect - Mobile Ready</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --primary: #e11d48; /* Color rojizo tipo "Live" */
+            --card-bg: rgba(30, 41, 59, 0.8);
+            --primary: #e11d48;
             --accent: #f43f5e;
             --text: #f8fafc;
         }
@@ -18,99 +18,126 @@
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 10% 20%, rgba(225, 29, 72, 0.1) 0%, transparent 20%),
-                              radial-gradient(circle at 90% 80%, rgba(244, 63, 94, 0.1) 0%, transparent 20%);
             color: var(--text);
             margin: 0;
             height: 100vh;
+            height: 100dvh; /* Altura dinámica para móviles modernos */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            overflow: hidden; /* Evita barras de scroll */
+            overflow: hidden;
         }
 
-        h1 { margin-bottom: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; font-size: 1.5rem; }
+        h1 { 
+            margin: 10px 0; 
+            font-weight: 600; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-size: 1.2rem; 
+        }
 
+        /* CONTENEDOR PRINCIPAL */
         .main-container {
             width: 95%;
-            height: 80vh;
+            height: 75vh;
             max-width: 1400px;
-            display: flex; /* Esto pone las pantallas lado a lado */
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-
-        /* En celulares, poner uno encima del otro */
-        @media (max-width: 768px) {
-            .main-container { flex-direction: column; height: auto; }
-            .video-card { height: 40vh; }
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
         }
 
         .video-card {
-            flex: 1; /* Ocupan el mismo espacio (50/50) */
+            flex: 1;
             background: var(--card-bg);
-            backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
+            border-radius: 16px;
             position: relative;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
             overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
         }
 
         video {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Llena todo el cuadro */
+            object-fit: cover;
             background: #000;
         }
 
-        /* Espejo solo para mi video */
         #local-video { transform: scaleX(-1); }
 
         .badge {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
+            bottom: 15px;
+            left: 15px;
             background: rgba(0, 0, 0, 0.6);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9rem;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
             font-weight: 600;
             backdrop-filter: blur(4px);
             z-index: 10;
         }
 
+        /* BOTONES Y CONTROLES */
         .controls-panel {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
+            width: 100%;
             z-index: 20;
+            padding-bottom: 20px;
         }
 
         button {
-            padding: 15px 50px;
+            padding: 15px 40px;
             background: linear-gradient(135deg, var(--primary), var(--accent));
             border: none;
             border-radius: 50px;
             color: white;
             font-weight: 700;
-            font-size: 1.1rem;
+            font-size: 1rem;
             cursor: pointer;
-            box-shadow: 0 0 20px rgba(225, 29, 72, 0.4);
-            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4);
+            width: 80%;
+            max-width: 300px;
+            -webkit-tap-highlight-color: transparent; /* Quita el flash azul en móviles */
         }
 
-        button:hover { transform: scale(1.05); box-shadow: 0 0 30px rgba(225, 29, 72, 0.6); }
-        button:disabled { background: #475569; cursor: not-allowed; box-shadow: none; transform: none; }
+        button:active { transform: scale(0.98); }
+        button:disabled { background: #475569; opacity: 0.7; box-shadow: none; }
 
-        .status-text { color: #94a3b8; font-size: 0.9rem; margin-top: 10px; font-family: monospace;}
+        .status-text { color: #94a3b8; font-size: 0.85rem; font-family: monospace;}
+
+        /* --- MODO CELULAR (RESPONSIVE) --- */
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column; /* Cambia a vertical */
+                height: auto;
+                flex: 1; /* Ocupa el espacio disponible */
+                width: 90%;
+            }
+
+            .video-card {
+                width: 100%;
+                height: 45%; /* Cada video ocupa casi la mitad */
+                border-radius: 12px;
+            }
+
+            h1 { font-size: 1rem; margin-top: 15px; }
+            
+            button {
+                padding: 12px 20px;
+                width: 90%; /* Botón más ancho en celular */
+            }
+        }
     </style>
 </head>
 <body>
 
-    <h1>NeoChat <span style="color: var(--primary);">Random</span></h1>
+    <h1>NeoConnect <span style="color: var(--primary);">Mobile</span></h1>
 
     <div class="main-container">
         <div class="video-card">
@@ -127,14 +154,14 @@
     <div class="controls-panel">
         <button id="btn-start" onclick="buscarPareja()">BUSCAR EXTRAÑO</button>
         <button id="btn-stop" onclick="cortarLlamada()" style="background: #334155; display: none;">DETENER</button>
-        <div id="status-msg" class="status-text">Conectando con el servidor...</div>
+        <div id="status-msg" class="status-text">Conectando al servidor...</div>
     </div>
 
     <script>
         // ==========================================
-        // CONFIGURACIÓN (¡CAMBIA ESTO!)
+        // TU URL DE RENDER YA CONFIGURADA
         // ==========================================
-        const SERVER_URL = 'tu-app-en-render.onrender.com'; // <--- Pon tu URL aquí sin https://
+        const SERVER_URL = 'backend-omegle-17xd.onrender.com';
         
         const peerConfig = {
             host: SERVER_URL,
@@ -150,15 +177,23 @@
         const btnStart = document.getElementById('btn-start');
         const btnStop = document.getElementById('btn-stop');
 
-        // 1. Iniciar cámara al cargar la página
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        // Configuración para móviles: playsinline es obligatorio en iPhone
+        const videoConstraints = {
+            video: {
+                facingMode: "user" // Usa la cámara frontal por defecto
+            },
+            audio: true
+        };
+
+        navigator.mediaDevices.getUserMedia(videoConstraints)
             .then(stream => {
                 localStream = stream;
                 document.getElementById('local-video').srcObject = stream;
                 iniciarPeer();
             })
             .catch(err => {
-                statusMsg.innerText = "Error: Activa la cámara para poder entrar.";
+                statusMsg.innerText = "Error: Permite la cámara en el navegador.";
+                console.error(err);
                 btnStart.disabled = true;
             });
 
@@ -166,16 +201,12 @@
             peer = new Peer(undefined, peerConfig);
 
             peer.on('open', (id) => {
-                statusMsg.innerText = "Online. Listo para buscar.";
-                console.log("Mi ID: " + id);
+                statusMsg.innerText = "Listo. Toca buscar.";
+                console.log("ID Propio: " + id);
             });
 
-            // Si alguien nos encuentra a nosotros
             peer.on('call', call => {
-                if(currentCall) { 
-                    call.close(); // Ocupado
-                    return; 
-                }
+                if(currentCall) { call.close(); return; }
                 statusMsg.innerText = "¡Encontrado! Conectando...";
                 contestartLlamada(call);
             });
@@ -183,10 +214,10 @@
             peer.on('error', err => {
                 console.error(err);
                 if(err.type === 'peer-unavailable') {
-                    statusMsg.innerText = "El usuario se desconectó. Buscando otro...";
+                    statusMsg.innerText = "Usuario desconectado. Reintentando...";
                     setTimeout(buscarPareja, 1500);
                 } else {
-                    statusMsg.innerText = "Error de conexión. Reintenta.";
+                    statusMsg.innerText = "Error de conexión.";
                 }
             });
         }
@@ -194,35 +225,31 @@
         async function buscarPareja() {
             if (!peer || !peer.id) return;
             
-            statusMsg.innerText = "Escaneando usuarios online...";
+            statusMsg.innerText = "Buscando...";
             btnStart.disabled = true;
             btnStart.style.opacity = "0.7";
 
             try {
-                // Obtener lista de usuarios del servidor
                 const response = await fetch(`https://${SERVER_URL}/myapp/peerjs/peers`);
                 const usuarios = await response.json();
-
-                // Filtrar (quitarme a mí mismo)
                 const extraños = usuarios.filter(id => id !== peer.id);
 
                 if (extraños.length === 0) {
-                    statusMsg.innerText = "Nadie más está conectado. Esperando...";
+                    statusMsg.innerText = "Nadie online. Espera...";
                     btnStart.disabled = false;
                     btnStart.style.opacity = "1";
                     return;
                 }
 
-                // Elegir uno al azar
                 const randomId = extraños[Math.floor(Math.random() * extraños.length)];
                 
-                statusMsg.innerText = "Usuario encontrado. Conectando...";
+                statusMsg.innerText = "Conectando...";
                 const call = peer.call(randomId, localStream);
                 contestartLlamada(call);
 
             } catch (error) {
                 console.error(error);
-                statusMsg.innerText = "Error al conectar con el servidor.";
+                statusMsg.innerText = "Error del servidor.";
                 btnStart.disabled = false;
                 btnStart.style.opacity = "1";
             }
@@ -230,16 +257,14 @@
 
         function contestartLlamada(call) {
             currentCall = call;
-            
-            // Intercambiar botones
             btnStart.style.display = 'none';
             btnStop.style.display = 'inline-block';
 
-            call.answer(localStream); // Responder automáticamente
+            call.answer(localStream);
             
             call.on('stream', remoteStream => {
                 document.getElementById('remote-video').srcObject = remoteStream;
-                statusMsg.innerText = "Conectado. Di hola.";
+                statusMsg.innerText = "Conectado.";
             });
 
             call.on('close', () => {
@@ -252,7 +277,7 @@
             currentCall = null;
             document.getElementById('remote-video').srcObject = null;
             
-            statusMsg.innerText = "Llamada finalizada.";
+            statusMsg.innerText = "Fin de la llamada.";
             btnStart.style.display = 'inline-block';
             btnStop.style.display = 'none';
             btnStart.disabled = false;
