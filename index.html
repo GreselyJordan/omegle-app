@@ -2,17 +2,21 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NeoConnect - Mobile Ready</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NeoConnect - Mobile Fix</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.8);
+            --card-bg: #1e293b;
             --primary: #e11d48;
             --accent: #f43f5e;
             --text: #f8fafc;
+        }
+
+        * {
+            box-sizing: border-box; /* Fundamental para que los bordes no sumen tamaño */
         }
 
         body {
@@ -20,42 +24,51 @@
             background-color: var(--bg-color);
             color: var(--text);
             margin: 0;
-            height: 100vh;
-            height: 100dvh; /* Altura dinámica para móviles modernos */
+            padding: 0;
+            
+            /* SOLUCIÓN AL PROBLEMA DE SCROLL Y BARRAS */
+            min-height: 100dvh; /* Altura dinámica real */
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
+            overflow-y: auto; /* PERMITIR SCROLL si no cabe */
+            
+            /* Respetar el Notch y la barra inferior del iPhone */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: 10px;
+            padding-right: 10px;
         }
 
         h1 { 
+            text-align: center;
             margin: 10px 0; 
-            font-weight: 600; 
-            text-transform: uppercase; 
-            letter-spacing: 2px; 
             font-size: 1.2rem; 
+            flex-shrink: 0; /* Que el título no se aplaste */
         }
 
         /* CONTENEDOR PRINCIPAL */
         .main-container {
-            width: 95%;
-            height: 75vh;
-            max-width: 1400px;
             display: flex;
             gap: 15px;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            flex: 1; /* Ocupar el espacio disponible */
         }
 
+        /* TARJETAS DE VIDEO */
         .video-card {
-            flex: 1;
             background: var(--card-bg);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            
+            /* En PC: 50% cada una */
+            flex: 1; 
+            height: auto; 
+            min-height: 0; /* Evita desbordes en Flexbox */
         }
 
         video {
@@ -63,81 +76,81 @@
             height: 100%;
             object-fit: cover;
             background: #000;
+            display: block; /* Quita el espacio blanco debajo de videos */
         }
 
         #local-video { transform: scaleX(-1); }
 
         .badge {
             position: absolute;
-            bottom: 15px;
-            left: 15px;
+            bottom: 10px;
+            left: 10px;
             background: rgba(0, 0, 0, 0.6);
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 0.8rem;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
             font-weight: 600;
             backdrop-filter: blur(4px);
             z-index: 10;
         }
 
-        /* BOTONES Y CONTROLES */
+        /* CONTROLES */
         .controls-panel {
+            flex-shrink: 0; /* Que no se aplaste */
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
+            padding: 15px 0;
             width: 100%;
-            z-index: 20;
-            padding-bottom: 20px;
         }
 
         button {
-            padding: 15px 40px;
+            padding: 15px 0;
+            width: 100%;
+            max-width: 350px;
             background: linear-gradient(135deg, var(--primary), var(--accent));
             border: none;
-            border-radius: 50px;
+            border-radius: 12px;
             color: white;
             font-weight: 700;
             font-size: 1rem;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(225, 29, 72, 0.4);
-            width: 80%;
-            max-width: 300px;
-            -webkit-tap-highlight-color: transparent; /* Quita el flash azul en móviles */
+            box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);
+            -webkit-tap-highlight-color: transparent;
         }
 
         button:active { transform: scale(0.98); }
         button:disabled { background: #475569; opacity: 0.7; box-shadow: none; }
 
-        .status-text { color: #94a3b8; font-size: 0.85rem; font-family: monospace;}
+        .status-text { color: #94a3b8; font-size: 0.85rem; text-align: center; min-height: 20px;}
 
-        /* --- MODO CELULAR (RESPONSIVE) --- */
+        /* --- MODO MÓVIL (VERTICAL) --- */
         @media (max-width: 768px) {
             .main-container {
-                flex-direction: column; /* Cambia a vertical */
-                height: auto;
-                flex: 1; /* Ocupa el espacio disponible */
-                width: 90%;
+                flex-direction: column; /* Una encima de la otra */
+                height: auto; /* Dejar que crezca según el contenido */
+                flex: none; /* No forzar estiramiento */
             }
 
             .video-card {
                 width: 100%;
-                height: 45%; /* Cada video ocupa casi la mitad */
-                border-radius: 12px;
+                /* Altura fija segura para móvil para que no se vea aplastado */
+                height: 35vh; 
+                min-height: 250px; /* Mínimo garantizado */
             }
-
-            h1 { font-size: 1rem; margin-top: 15px; }
             
-            button {
-                padding: 12px 20px;
-                width: 90%; /* Botón más ancho en celular */
+            /* Ajuste para pantallas MUY pequeñas */
+            @media (max-height: 600px) {
+                .video-card { height: 30vh; min-height: 200px; }
             }
         }
     </style>
 </head>
 <body>
 
-    <h1>NeoConnect <span style="color: var(--primary);">Mobile</span></h1>
+    <h1>NeoConnect</h1>
 
     <div class="main-container">
         <div class="video-card">
@@ -152,14 +165,14 @@
     </div>
 
     <div class="controls-panel">
+        <div id="status-msg" class="status-text">Conectando al servidor...</div>
         <button id="btn-start" onclick="buscarPareja()">BUSCAR EXTRAÑO</button>
         <button id="btn-stop" onclick="cortarLlamada()" style="background: #334155; display: none;">DETENER</button>
-        <div id="status-msg" class="status-text">Conectando al servidor...</div>
     </div>
 
     <script>
         // ==========================================
-        // TU URL DE RENDER YA CONFIGURADA
+        // URL DEL BACKEND
         // ==========================================
         const SERVER_URL = 'backend-omegle-17xd.onrender.com';
         
@@ -177,11 +190,9 @@
         const btnStart = document.getElementById('btn-start');
         const btnStop = document.getElementById('btn-stop');
 
-        // Configuración para móviles: playsinline es obligatorio en iPhone
+        // Configuración de cámara para móviles
         const videoConstraints = {
-            video: {
-                facingMode: "user" // Usa la cámara frontal por defecto
-            },
+            video: { facingMode: "user" }, // Cámara frontal
             audio: true
         };
 
@@ -192,8 +203,7 @@
                 iniciarPeer();
             })
             .catch(err => {
-                statusMsg.innerText = "Error: Permite la cámara en el navegador.";
-                console.error(err);
+                statusMsg.innerText = "Error: Habilita la cámara en el navegador.";
                 btnStart.disabled = true;
             });
 
@@ -201,8 +211,8 @@
             peer = new Peer(undefined, peerConfig);
 
             peer.on('open', (id) => {
-                statusMsg.innerText = "Listo. Toca buscar.";
-                console.log("ID Propio: " + id);
+                statusMsg.innerText = "Conectado. Pulsa buscar.";
+                console.log("ID: " + id);
             });
 
             peer.on('call', call => {
@@ -235,7 +245,7 @@
                 const extraños = usuarios.filter(id => id !== peer.id);
 
                 if (extraños.length === 0) {
-                    statusMsg.innerText = "Nadie online. Espera...";
+                    statusMsg.innerText = "Nadie online. Espera un momento...";
                     btnStart.disabled = false;
                     btnStart.style.opacity = "1";
                     return;
@@ -258,7 +268,7 @@
         function contestartLlamada(call) {
             currentCall = call;
             btnStart.style.display = 'none';
-            btnStop.style.display = 'inline-block';
+            btnStop.style.display = 'block';
 
             call.answer(localStream);
             
@@ -277,8 +287,8 @@
             currentCall = null;
             document.getElementById('remote-video').srcObject = null;
             
-            statusMsg.innerText = "Fin de la llamada.";
-            btnStart.style.display = 'inline-block';
+            statusMsg.innerText = "Llamada terminada.";
+            btnStart.style.display = 'block';
             btnStop.style.display = 'none';
             btnStart.disabled = false;
             btnStart.style.opacity = "1";
