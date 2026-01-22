@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NeoConnect - Mobile Fix</title>
+    <title>NeoConnect - Chat & Video</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
@@ -13,11 +13,11 @@
             --primary: #e11d48;
             --accent: #f43f5e;
             --text: #f8fafc;
+            --chat-bubble-me: #2563eb;
+            --chat-bubble-them: #334155;
         }
 
-        * {
-            box-sizing: border-box; /* Fundamental para que los bordes no sumen tamaño */
-        }
+        * { box-sizing: border-box; }
 
         body {
             font-family: 'Inter', sans-serif;
@@ -25,50 +25,38 @@
             color: var(--text);
             margin: 0;
             padding: 0;
-            
-            /* SOLUCIÓN AL PROBLEMA DE SCROLL Y BARRAS */
-            min-height: 100dvh; /* Altura dinámica real */
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
-            overflow-y: auto; /* PERMITIR SCROLL si no cabe */
-            
-            /* Respetar el Notch y la barra inferior del iPhone */
+            overflow-y: auto; /* Scroll habilitado */
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
-            padding-left: 10px;
-            padding-right: 10px;
         }
 
         h1 { 
             text-align: center;
             margin: 10px 0; 
             font-size: 1.2rem; 
-            flex-shrink: 0; /* Que el título no se aplaste */
         }
 
-        /* CONTENEDOR PRINCIPAL */
+        /* --- CONTENEDOR VIDEO --- */
         .main-container {
             display: flex;
-            gap: 15px;
+            gap: 10px;
             width: 100%;
             max-width: 1200px;
             margin: 0 auto;
-            flex: 1; /* Ocupar el espacio disponible */
+            padding: 0 10px;
         }
 
-        /* TARJETAS DE VIDEO */
         .video-card {
             background: var(--card-bg);
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            
-            /* En PC: 50% cada una */
             flex: 1; 
-            height: auto; 
-            min-height: 0; /* Evita desbordes en Flexbox */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
         video {
@@ -76,38 +64,35 @@
             height: 100%;
             object-fit: cover;
             background: #000;
-            display: block; /* Quita el espacio blanco debajo de videos */
+            display: block; 
         }
 
         #local-video { transform: scaleX(-1); }
 
         .badge {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
+            bottom: 8px;
+            left: 8px;
             background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
             font-weight: 600;
-            backdrop-filter: blur(4px);
             z-index: 10;
         }
 
-        /* CONTROLES */
+        /* --- CONTROLES --- */
         .controls-panel {
-            flex-shrink: 0; /* Que no se aplaste */
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 10px;
-            padding: 15px 0;
+            padding: 15px 10px;
             width: 100%;
         }
 
-        button {
-            padding: 15px 0;
+        .main-btn {
+            padding: 12px 0;
             width: 100%;
             max-width: 350px;
             background: linear-gradient(135deg, var(--primary), var(--accent));
@@ -118,33 +103,96 @@
             font-size: 1rem;
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);
-            -webkit-tap-highlight-color: transparent;
         }
-
-        button:active { transform: scale(0.98); }
-        button:disabled { background: #475569; opacity: 0.7; box-shadow: none; }
+        .main-btn:disabled { opacity: 0.6; filter: grayscale(1); }
 
         .status-text { color: #94a3b8; font-size: 0.85rem; text-align: center; min-height: 20px;}
+
+        /* --- SECCIÓN DE CHAT (NUEVO) --- */
+        .chat-section {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto 20px auto; /* Margen abajo para scroll */
+            padding: 0 10px;
+            display: none; /* Oculto hasta conectar */
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .chat-window {
+            height: 200px;
+            background: #111827;
+            border-radius: 12px;
+            border: 1px solid #374151;
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .msg {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            word-wrap: break-word;
+        }
+
+        .msg-me {
+            align-self: flex-end;
+            background: var(--chat-bubble-me);
+            color: white;
+            border-bottom-right-radius: 2px;
+        }
+
+        .msg-them {
+            align-self: flex-start;
+            background: var(--chat-bubble-them);
+            color: #e2e8f0;
+            border-bottom-left-radius: 2px;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #374151;
+            background: #1f2937;
+            color: white;
+            outline: none;
+        }
+
+        .input-area button {
+            padding: 0 20px;
+            background: #2563eb;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
         /* --- MODO MÓVIL (VERTICAL) --- */
         @media (max-width: 768px) {
             .main-container {
-                flex-direction: column; /* Una encima de la otra */
-                height: auto; /* Dejar que crezca según el contenido */
-                flex: none; /* No forzar estiramiento */
+                flex-direction: column;
+                height: auto;
             }
 
             .video-card {
                 width: 100%;
-                /* Altura fija segura para móvil para que no se vea aplastado */
                 height: 35vh; 
-                min-height: 250px; /* Mínimo garantizado */
+                min-height: 250px;
             }
             
-            /* Ajuste para pantallas MUY pequeñas */
-            @media (max-height: 600px) {
-                .video-card { height: 30vh; min-height: 200px; }
-            }
+            /* Ajuste para que el chat no se coma toda la pantalla al abrir teclado */
+            .chat-window { height: 180px; }
         }
     </style>
 </head>
@@ -166,14 +214,23 @@
 
     <div class="controls-panel">
         <div id="status-msg" class="status-text">Conectando al servidor...</div>
-        <button id="btn-start" onclick="buscarPareja()">BUSCAR EXTRAÑO</button>
-        <button id="btn-stop" onclick="cortarLlamada()" style="background: #334155; display: none;">DETENER</button>
+        <button id="btn-start" class="main-btn" onclick="buscarPareja()">BUSCAR EXTRAÑO</button>
+        <button id="btn-stop" class="main-btn" onclick="cortarLlamada()" style="background: #334155; display: none;">DETENER</button>
+    </div>
+
+    <div class="chat-section" id="chat-section">
+        <div class="chat-window" id="chat-window">
+            <div class="msg msg-them" style="background: transparent; color: #64748b; font-size: 0.8rem;">
+                Chat conectado. Di hola.
+            </div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="msg-input" placeholder="Escribe un mensaje..." onkeypress="if(event.key === 'Enter') enviarMensaje()">
+            <button onclick="enviarMensaje()">➤</button>
+        </div>
     </div>
 
     <script>
-        // ==========================================
-        // URL DEL BACKEND
-        // ==========================================
         const SERVER_URL = 'backend-omegle-17xd.onrender.com';
         
         const peerConfig = {
@@ -185,25 +242,25 @@
 
         let peer = null;
         let localStream = null;
-        let currentCall = null;
+        let currentCall = null;     // Conexión de Video
+        let currentDataConn = null; // Conexión de Texto (Chat)
+
         const statusMsg = document.getElementById('status-msg');
         const btnStart = document.getElementById('btn-start');
         const btnStop = document.getElementById('btn-stop');
+        const chatSection = document.getElementById('chat-section');
+        const chatWindow = document.getElementById('chat-window');
+        const msgInput = document.getElementById('msg-input');
 
-        // Configuración de cámara para móviles
-        const videoConstraints = {
-            video: { facingMode: "user" }, // Cámara frontal
-            audio: true
-        };
-
-        navigator.mediaDevices.getUserMedia(videoConstraints)
+        // Configuración de cámara
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true })
             .then(stream => {
                 localStream = stream;
                 document.getElementById('local-video').srcObject = stream;
                 iniciarPeer();
             })
             .catch(err => {
-                statusMsg.innerText = "Error: Habilita la cámara en el navegador.";
+                statusMsg.innerText = "Error: Habilita la cámara.";
                 btnStart.disabled = true;
             });
 
@@ -211,14 +268,21 @@
             peer = new Peer(undefined, peerConfig);
 
             peer.on('open', (id) => {
-                statusMsg.innerText = "Conectado. Pulsa buscar.";
-                console.log("ID: " + id);
+                statusMsg.innerText = "Listo. Pulsa Buscar.";
+                console.log("Mi ID: " + id);
             });
 
+            // 1. Recibir llamada de VIDEO
             peer.on('call', call => {
                 if(currentCall) { call.close(); return; }
-                statusMsg.innerText = "¡Encontrado! Conectando...";
-                contestartLlamada(call);
+                statusMsg.innerText = "¡Encontrado! Conectando vídeo...";
+                gestionarLlamada(call);
+            });
+
+            // 2. Recibir conexión de CHAT
+            peer.on('connection', conn => {
+                if(currentDataConn) { conn.close(); return; }
+                gestionarChat(conn);
             });
 
             peer.on('error', err => {
@@ -226,8 +290,6 @@
                 if(err.type === 'peer-unavailable') {
                     statusMsg.innerText = "Usuario desconectado. Reintentando...";
                     setTimeout(buscarPareja, 1500);
-                } else {
-                    statusMsg.innerText = "Error de conexión.";
                 }
             });
         }
@@ -245,7 +307,7 @@
                 const extraños = usuarios.filter(id => id !== peer.id);
 
                 if (extraños.length === 0) {
-                    statusMsg.innerText = "Nadie online. Espera un momento...";
+                    statusMsg.innerText = "Nadie online. Espera...";
                     btnStart.disabled = false;
                     btnStart.style.opacity = "1";
                     return;
@@ -254,8 +316,13 @@
                 const randomId = extraños[Math.floor(Math.random() * extraños.length)];
                 
                 statusMsg.innerText = "Conectando...";
+                
+                // INICIAR AMBAS CONEXIONES (Video y Chat)
                 const call = peer.call(randomId, localStream);
-                contestartLlamada(call);
+                const conn = peer.connect(randomId); // Conexión de datos
+
+                gestionarLlamada(call);
+                gestionarChat(conn);
 
             } catch (error) {
                 console.error(error);
@@ -265,31 +332,81 @@
             }
         }
 
-        function contestartLlamada(call) {
+        // --- LÓGICA DE VIDEO ---
+        function gestionarLlamada(call) {
             currentCall = call;
-            btnStart.style.display = 'none';
-            btnStop.style.display = 'block';
-
+            mostrarInterfazConectado();
             call.answer(localStream);
-            
             call.on('stream', remoteStream => {
                 document.getElementById('remote-video').srcObject = remoteStream;
-                statusMsg.innerText = "Conectado.";
+            });
+            call.on('close', cortarLlamada);
+        }
+
+        // --- LÓGICA DE CHAT ---
+        function gestionarChat(conn) {
+            currentDataConn = conn;
+            
+            conn.on('open', () => {
+                console.log("Chat abierto");
+                // Limpiar chat anterior
+                chatWindow.innerHTML = '<div class="msg msg-them" style="background:transparent; color:#64748b;">Chat conectado.</div>';
             });
 
-            call.on('close', () => {
-                cortarLlamada();
+            conn.on('data', data => {
+                agregarMensaje(data, 'them');
             });
+
+            conn.on('close', () => {
+                console.log("Chat cerrado");
+            });
+        }
+
+        function enviarMensaje() {
+            const texto = msgInput.value.trim();
+            if (!texto || !currentDataConn) return;
+
+            // Enviar al otro
+            currentDataConn.send(texto);
+            
+            // Mostrar en mi pantalla
+            agregarMensaje(texto, 'me');
+            msgInput.value = '';
+        }
+
+        function agregarMensaje(texto, tipo) {
+            const div = document.createElement('div');
+            div.className = `msg msg-${tipo}`;
+            div.innerText = texto;
+            chatWindow.appendChild(div);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll abajo
+        }
+
+        // --- INTERFAZ ---
+        function mostrarInterfazConectado() {
+            btnStart.style.display = 'none';
+            btnStop.style.display = 'block';
+            chatSection.style.display = 'flex'; // Mostrar chat
+            statusMsg.innerText = "Conectado.";
+            // Scroll hacia el chat para que se vea en móvil
+            setTimeout(() => {
+                chatSection.scrollIntoView({ behavior: 'smooth' });
+            }, 500);
         }
 
         function cortarLlamada() {
             if (currentCall) currentCall.close();
+            if (currentDataConn) currentDataConn.close();
+            
             currentCall = null;
+            currentDataConn = null;
             document.getElementById('remote-video').srcObject = null;
             
-            statusMsg.innerText = "Llamada terminada.";
+            statusMsg.innerText = "Llamada finalizada.";
             btnStart.style.display = 'block';
             btnStop.style.display = 'none';
+            chatSection.style.display = 'none'; // Ocultar chat
+            
             btnStart.disabled = false;
             btnStart.style.opacity = "1";
         }
