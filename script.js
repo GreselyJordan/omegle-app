@@ -21,20 +21,22 @@ let localStream = null;
 let currentCall = null;
 let currentDataConn = null;
 let isSearching = false;
+let isMicMuted = false;
+let currentFacingMode = "user"; // 'user' or 'environment'
 
 const statusMsg = document.getElementById('status-msg');
 const btnStart = document.getElementById('btn-start');
+const btnCancel = document.getElementById('btn-cancel');
 const btnStop = document.getElementById('btn-stop');
 const chatSection = document.getElementById('chat-section');
 const chatWindow = document.getElementById('chat-window');
 const msgInput = document.getElementById('msg-input');
 const tvOverlay = document.getElementById('tv-overlay');
 const debugLog = document.getElementById('debug-log');
+const micIcon = document.getElementById('mic-icon');
 
-// Helper for "Typing" effect on status
 function updateStatus(text) {
     statusMsg.innerText = text.toUpperCase();
-    // Optional: Add a glitch effect class temporarily here if desired
 }
 
 function log(text) {
@@ -45,31 +47,97 @@ function log(text) {
     debugLog.scrollTop = debugLog.scrollHeight;
 }
 
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true })
-    .then(stream => {
+// --- MEDIA CONTROLS ---
+
+async function getMediaStream(facingMode = 'user') {
+    try {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: facingMode }, 
+            audio: true 
+        });
         localStream = stream;
         document.getElementById('local-video').srcObject = stream;
-        iniciarPeer();
-    })
-    .catch(err => {
-        updateStatus("ERROR: CAMERA ACCESS DENIED");
-        log("CRITICAL: Camera access failed - " + err);
-        btnStart.disabled = true;
-    });
+        
+        // Restore mute state if needed
+        if (isMicMuted) {
+            localStream.getAudioTracks()[0].enabled = false;
+        }
+
+        // If in a call, replace the track (advanced, but for now we just restart call or keep local view)
+        if (currentCall) {
+            // PeerJS doesn't support easy track replacement in all browsers without renegotiation
+            // For simplicity in this "hacky" app, we might need to just update local view 
+            // OR ideally renegotiate. But renegotiation is hard in PeerJS v1.
+            // Let's just warn user or try to replace track if supported.
+            const videoTrack = stream.getVideoTracks()[0];
+            const sender = currentCall.peerConnection.getSenders().find((s) => s.track.kind === videoTrack.kind);
+            if (sender) {
+                sender.replaceTrack(videoTrack);
+            }
+        }
+
+        return stream;
+    } catch (err) {
+        log("MEDIA ERROR: " + err);
+        updateStatus("CAMERA ERROR");
+        return null;
+    }
+}
+
+function switchCamera() {
+    currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+    log("SWITCHING CAMERA TO: " + currentFacingMode.toUpperCase());
+    getMediaStream(currentFacingMode);
+}
+
+function toggleMic() {
+    if (!localStream) return;
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+        isMicMuted = !isMicMuted;
+        audioTrack.enabled = !isMicMuted;
+        
+        // Update Icon
+        if (isMicMuted) {
+            micIcon.innerHTML = '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><line x1="1" y1="1" x2="23" y2="23"></line><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>';
+            micIcon.style.stroke = "#ff0000";
+            log("MICROPHONE MUTED");
+        } else {
+            micIcon.innerHTML = '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>';
+            micIcon.style.stroke = "currentColor";
+            log("MICROPHONE ACTIVE");
+        }
+    }
+}
+
+// --- INITIALIZATION ---
+
+getMediaStream('user').then(() => {
+    iniciarPeer();
+});
 
 function iniciarPeer() {
     peer = new Peer(undefined, peerConfig);
     
     peer.on('open', (id) => { 
         updateStatus("SYSTEM ONLINE. READY.");
-        log("NODE ID ASSIGNED: " + id);
+        log("NODE ID: " + id);
     });
     
     peer.on('call', call => {
-        log("INCOMING TRANSMISSION DETECTED");
-        isSearching = false; 
-        updateStatus("ESTABLISHING UPLINK...");
-        gestionarLlamada(call);
+        if (isSearching || !currentCall) {
+            log("INCOMING TRANSMISSION...");
+            isSearching = false; 
+            updateStatus("ESTABLISHING UPLINK...");
+            gestionarLlamada(call);
+        } else {
+            // Busy
+            log("REJECTED INCOMING (BUSY)");
+            call.close();
+        }
     });
 
     peer.on('connection', conn => {
@@ -80,10 +148,13 @@ function iniciarPeer() {
     peer.on('error', err => {
         log("PEER ERROR: " + err.type);
         if(err.type === 'peer-unavailable' && isSearching) {
-            setTimeout(buscarPareja, 2000);
+            // Retry immediately if peer not found
+            setTimeout(buscarPareja, 1000);
         }
     });
 }
+
+// --- SEARCH LOGIC OPTIMIZED ---
 
 async function buscarPareja() {
     if (!peer || !peer.id) return;
@@ -91,8 +162,12 @@ async function buscarPareja() {
     isSearching = true; 
     tvOverlay.style.display = 'block'; 
     updateStatus("SCANNING NETWORK...");
-    btnStart.disabled = true;
-    btnStart.style.opacity = "0.7";
+    
+    // UI Updates
+    btnStart.style.display = 'none';
+    btnCancel.style.display = 'block';
+    btnStop.style.display = 'none';
+    
     log("INITIATING SEARCH PROTOCOL...");
 
     try {
@@ -102,38 +177,64 @@ async function buscarPareja() {
 
         if (extraños.length === 0) {
             updateStatus("NO SIGNALS DETECTED...");
-            log("Network silent. Retrying scan...");
-            setTimeout(() => {
-                if(isSearching) buscarPareja(); 
-            }, 3000);
+            log("Network silent. Retrying...");
+            if (isSearching) setTimeout(buscarPareja, 2000);
             return;
         }
 
         log(`TARGETS IDENTIFIED: ${extraños.length}`);
+        
+        // OPTIMIZATION: Try a random user, but handle failure faster
         const randomId = extraños[Math.floor(Math.random() * extraños.length)];
         
-        const randomDelay = Math.floor(Math.random() * 2000); 
-        log(`SYNCING ENCRYPTION KEYS (${randomDelay}ms)...`);
-        updateStatus("SYNCHRONIZING...");
-
+        // Random delay to reduce collision probability
+        const randomDelay = Math.floor(Math.random() * 1500); 
+        log(`SYNCING (${randomDelay}ms)...`);
+        
         setTimeout(() => {
-            if (!isSearching || currentCall) {
-                log("ABORT: LINE BUSY");
-                return;
-            }
+            if (!isSearching) return; // Cancelled
+            if (currentCall) return; // Already connected
 
             log(`DIALING TARGET: ${randomId}`);
             const call = peer.call(randomId, localStream);
             const conn = peer.connect(randomId);
             
+            // Timeout to abort if no answer in 5s
+            const callTimeout = setTimeout(() => {
+                if (currentCall !== call) {
+                    log("NO ANSWER. RETRYING...");
+                    call.close();
+                    if (isSearching) buscarPareja();
+                }
+            }, 8000);
+
             gestionarLlamada(call);
             gestionarChat(conn);
+            
+            // Clear timeout if connected
+            call.on('stream', () => clearTimeout(callTimeout));
+            call.on('close', () => clearTimeout(callTimeout));
+            call.on('error', () => {
+                clearTimeout(callTimeout);
+                if (isSearching) buscarPareja();
+            });
+
         }, randomDelay);
 
     } catch (error) {
         log("NETWORK ERROR: " + error);
-        setTimeout(buscarPareja, 3000);
+        if (isSearching) setTimeout(buscarPareja, 3000);
     }
+}
+
+function cancelarBusqueda() {
+    isSearching = false;
+    tvOverlay.style.display = 'none';
+    updateStatus("SEARCH ABORTED");
+    btnStart.style.display = 'block';
+    btnCancel.style.display = 'none';
+    btnStop.style.display = 'none';
+    log("SEARCH CANCELLED BY USER");
 }
 
 function gestionarLlamada(call) {
@@ -148,7 +249,6 @@ function gestionarLlamada(call) {
     
     call.on('stream', remoteStream => {
         const videoElement = document.getElementById('remote-video');
-        
         if (videoElement.srcObject === remoteStream) return;
 
         log("VIDEO FEED CAPTURED");
@@ -157,11 +257,7 @@ function gestionarLlamada(call) {
         const playPromise = videoElement.play();
         if (playPromise !== undefined) {
             playPromise.catch(error => {
-                if (error.name === 'AbortError') {
-                    console.log("Autoplay handled.");
-                } else {
-                    log("AUTOPLAY ERROR: " + error);
-                }
+                if (error.name !== 'AbortError') log("AUTOPLAY ERROR: " + error);
             });
         }
 
@@ -169,7 +265,11 @@ function gestionarLlamada(call) {
         mostrarInterfazConectado();
     });
     
-    call.on('error', err => log("CALL ERROR: " + err));
+    call.on('error', err => {
+        log("CALL ERROR: " + err);
+        if (isSearching) buscarPareja(); // Retry if error during setup
+    });
+    
     call.on('close', cortarLlamada);
 }
 
@@ -193,15 +293,15 @@ function enviarMensaje() {
 function agregarMensaje(texto, tipo) {
     const div = document.createElement('div');
     div.className = `msg msg-${tipo}`;
-    div.innerText = texto; // Text is already styled by CSS font
+    div.innerText = texto;
     chatWindow.appendChild(div);
     chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
 function mostrarInterfazConectado() {
-    if(!isSearching) return; 
     isSearching = false; 
     btnStart.style.display = 'none';
+    btnCancel.style.display = 'none';
     btnStop.style.display = 'block';
     chatSection.style.display = 'flex';
     updateStatus("SECURE CONNECTION ESTABLISHED");
@@ -220,11 +320,11 @@ function cortarLlamada() {
     
     tvOverlay.style.display = 'none';
     updateStatus("CONNECTION TERMINATED");
+    
     btnStart.style.display = 'block';
+    btnCancel.style.display = 'none';
     btnStop.style.display = 'none';
     chatSection.style.display = 'none';
     
-    btnStart.disabled = false;
-    btnStart.style.opacity = "1";
     log("SESSION ENDED.");
 }
