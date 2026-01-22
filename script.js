@@ -21,8 +21,9 @@ let localStream = null;
 let currentCall = null;
 let currentDataConn = null;
 let isSearching = false;
+let isConnected = false; // New flag to track active conversation
 let isMicMuted = false;
-let currentFacingMode = "user"; // 'user' or 'environment'
+let currentFacingMode = "user";
 
 const statusMsg = document.getElementById('status-msg');
 const btnStart = document.getElementById('btn-start');
@@ -61,17 +62,11 @@ async function getMediaStream(facingMode = 'user') {
         localStream = stream;
         document.getElementById('local-video').srcObject = stream;
         
-        // Restore mute state if needed
         if (isMicMuted) {
             localStream.getAudioTracks()[0].enabled = false;
         }
 
-        // If in a call, replace the track (advanced, but for now we just restart call or keep local view)
         if (currentCall) {
-            // PeerJS doesn't support easy track replacement in all browsers without renegotiation
-            // For simplicity in this "hacky" app, we might need to just update local view 
-            // OR ideally renegotiate. But renegotiation is hard in PeerJS v1.
-            // Let's just warn user or try to replace track if supported.
             const videoTrack = stream.getVideoTracks()[0];
             const sender = currentCall.peerConnection.getSenders().find((s) => s.track.kind === videoTrack.kind);
             if (sender) {
@@ -100,7 +95,6 @@ function toggleMic() {
         isMicMuted = !isMicMuted;
         audioTrack.enabled = !isMicMuted;
         
-        // Update Icon
         if (isMicMuted) {
             micIcon.innerHTML = '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><line x1="1" y1="1" x2="23" y2="23"></line><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line>';
             micIcon.style.stroke = "#ff0000";
@@ -123,47 +117,49 @@ function iniciarPeer() {
     peer = new Peer(undefined, peerConfig);
     
     peer.on('open', (id) => { 
-        updateStatus("SYSTEM ONLINE. READY.");
+        updateStatus("SYSTEM ONLINE. STANDBY.");
         log("NODE ID: " + id);
     });
     
     peer.on('call', call => {
-        if (isSearching || !currentCall) {
+        // CRITICAL FIX: Only answer if we are actively searching
+        if (isSearching && !isConnected) {
             log("INCOMING TRANSMISSION...");
-            isSearching = false; 
             updateStatus("ESTABLISHING UPLINK...");
             gestionarLlamada(call);
         } else {
-            // Busy
-            log("REJECTED INCOMING (BUSY)");
-            call.close();
+            log("IGNORED INCOMING (NOT SEARCHING)");
+            call.close(); // Reject the call
         }
     });
 
     peer.on('connection', conn => {
-        log("DATA CHANNEL OPENED");
-        gestionarChat(conn);
+        if (isSearching || isConnected) {
+            log("DATA CHANNEL OPENED");
+            gestionarChat(conn);
+        } else {
+            conn.close();
+        }
     });
 
     peer.on('error', err => {
         log("PEER ERROR: " + err.type);
         if(err.type === 'peer-unavailable' && isSearching) {
-            // Retry immediately if peer not found
             setTimeout(buscarPareja, 1000);
         }
     });
 }
 
-// --- SEARCH LOGIC OPTIMIZED ---
+// --- SEARCH LOGIC ---
 
 async function buscarPareja() {
     if (!peer || !peer.id) return;
     
     isSearching = true; 
+    isConnected = false;
     tvOverlay.style.display = 'block'; 
     updateStatus("SCANNING NETWORK...");
     
-    // UI Updates
     btnStart.style.display = 'none';
     btnCancel.style.display = 'block';
     btnStop.style.display = 'none';
@@ -184,40 +180,26 @@ async function buscarPareja() {
 
         log(`TARGETS IDENTIFIED: ${extraños.length}`);
         
-        // OPTIMIZATION: Try a random user, but handle failure faster
         const randomId = extraños[Math.floor(Math.random() * extraños.length)];
-        
-        // Random delay to reduce collision probability
-        const randomDelay = Math.floor(Math.random() * 1500); 
-        log(`SYNCING (${randomDelay}ms)...`);
+        const randomDelay = Math.floor(Math.random() * 1000); 
         
         setTimeout(() => {
-            if (!isSearching) return; // Cancelled
-            if (currentCall) return; // Already connected
+            if (!isSearching || isConnected) return; 
 
             log(`DIALING TARGET: ${randomId}`);
             const call = peer.call(randomId, localStream);
             const conn = peer.connect(randomId);
             
-            // Timeout to abort if no answer in 5s
+            // Timeout: If no connection in 5s, assume rejection/timeout and retry
             const callTimeout = setTimeout(() => {
-                if (currentCall !== call) {
-                    log("NO ANSWER. RETRYING...");
-                    call.close();
-                    if (isSearching) buscarPareja();
+                if (!isConnected && currentCall === call) {
+                    log("NO ANSWER / TIMEOUT. RETRYING...");
+                    call.close(); // This will trigger 'close' event
                 }
-            }, 8000);
+            }, 5000);
 
-            gestionarLlamada(call);
+            gestionarLlamada(call, callTimeout);
             gestionarChat(conn);
-            
-            // Clear timeout if connected
-            call.on('stream', () => clearTimeout(callTimeout));
-            call.on('close', () => clearTimeout(callTimeout));
-            call.on('error', () => {
-                clearTimeout(callTimeout);
-                if (isSearching) buscarPareja();
-            });
 
         }, randomDelay);
 
@@ -229,15 +211,18 @@ async function buscarPareja() {
 
 function cancelarBusqueda() {
     isSearching = false;
+    isConnected = false;
     tvOverlay.style.display = 'none';
     updateStatus("SEARCH ABORTED");
     btnStart.style.display = 'block';
     btnCancel.style.display = 'none';
     btnStop.style.display = 'none';
+    
+    if (currentCall) currentCall.close();
     log("SEARCH CANCELLED BY USER");
 }
 
-function gestionarLlamada(call) {
+function gestionarLlamada(call, timeoutId = null) {
     if (currentCall && currentCall.peer !== call.peer) {
         call.close();
         return;
@@ -245,15 +230,21 @@ function gestionarLlamada(call) {
 
     currentCall = call;
     
+    // Always answer, but the 'stream' event determines success
     call.answer(localStream);
     
     call.on('stream', remoteStream => {
+        if (timeoutId) clearTimeout(timeoutId);
+        
         const videoElement = document.getElementById('remote-video');
         if (videoElement.srcObject === remoteStream) return;
 
         log("VIDEO FEED CAPTURED");
         videoElement.srcObject = remoteStream;
         
+        isConnected = true; // Mark as successfully connected
+        isSearching = false; // Stop searching
+
         const playPromise = videoElement.play();
         if (playPromise !== undefined) {
             playPromise.catch(error => {
@@ -267,10 +258,26 @@ function gestionarLlamada(call) {
     
     call.on('error', err => {
         log("CALL ERROR: " + err);
-        if (isSearching) buscarPareja(); // Retry if error during setup
+        if (timeoutId) clearTimeout(timeoutId);
     });
     
-    call.on('close', cortarLlamada);
+    call.on('close', () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        
+        if (isConnected) {
+            // Was a valid call, now ended
+            cortarLlamada();
+        } else {
+            // Was a failed attempt (rejected or timed out)
+            log("CALL FAILED/REJECTED");
+            currentCall = null;
+            document.getElementById('remote-video').srcObject = null;
+            // If we are still searching, try next
+            if (isSearching) {
+                buscarPareja();
+            }
+        }
+    });
 }
 
 function gestionarChat(conn) {
@@ -299,7 +306,6 @@ function agregarMensaje(texto, tipo) {
 }
 
 function mostrarInterfazConectado() {
-    isSearching = false; 
     btnStart.style.display = 'none';
     btnCancel.style.display = 'none';
     btnStop.style.display = 'block';
@@ -311,6 +317,8 @@ function mostrarInterfazConectado() {
 
 function cortarLlamada() {
     isSearching = false;
+    isConnected = false;
+    
     if (currentCall) currentCall.close();
     if (currentDataConn) currentDataConn.close();
     
