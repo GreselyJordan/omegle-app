@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NeoConnect - Chat & Video</title>
+    <title>NeoConnect - Retro TV</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=VT323&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg-color: #0f172a;
@@ -28,7 +28,7 @@
             min-height: 100dvh;
             display: flex;
             flex-direction: column;
-            overflow-y: auto; /* Scroll habilitado */
+            overflow-y: auto;
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
         }
@@ -57,13 +57,13 @@
             overflow: hidden;
             flex: 1; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            background: #000; /* Fondo negro por si acaso */
         }
 
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            background: #000;
             display: block; 
         }
 
@@ -79,6 +79,68 @@
             font-size: 0.7rem;
             font-weight: 600;
             z-index: 10;
+        }
+
+        /* --- EFECTO TV ANTIGUA (CSS PURO) --- */
+        .tv-static {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            display: none; /* Oculto por defecto */
+            background: #111;
+            overflow: hidden;
+        }
+
+        /* Generamos el ruido con un gradiente repetido */
+        .tv-noise {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            right: -50%;
+            bottom: -50%;
+            width: 200%;
+            height: 200vh;
+            background: repeating-radial-gradient(#000 0 0.0001%, #111 0 0.0002%) 50% 0/2500px 2500px, repeating-conic-gradient(#000 0 0.0001%, #111 0 0.0002%) 60% 60%/2500px 2500px;
+            background-blend-mode: difference;
+            animation: noise .2s infinite alternate;
+        }
+
+        .tv-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #0f0; /* Verde fósforo clásico */
+            font-family: 'VT323', monospace; /* Fuente retro */
+            font-size: 1.5rem;
+            text-shadow: 0 0 5px #0f0;
+            letter-spacing: 2px;
+            animation: blink 1s infinite;
+            z-index: 22;
+            text-align: center;
+            width: 100%;
+        }
+
+        @keyframes noise {
+            100% { background-position: 50% 0, 60% 50%; }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Scanlines (Líneas horizontales) */
+        .scanlines {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            z-index: 21;
         }
 
         /* --- CONTROLES --- */
@@ -108,13 +170,13 @@
 
         .status-text { color: #94a3b8; font-size: 0.85rem; text-align: center; min-height: 20px;}
 
-        /* --- SECCIÓN DE CHAT (NUEVO) --- */
+        /* --- CHAT --- */
         .chat-section {
             width: 100%;
             max-width: 600px;
-            margin: 0 auto 20px auto; /* Margen abajo para scroll */
+            margin: 0 auto 20px auto;
             padding: 0 10px;
-            display: none; /* Oculto hasta conectar */
+            display: none;
             flex-direction: column;
             gap: 10px;
         }
@@ -139,66 +201,24 @@
             word-wrap: break-word;
         }
 
-        .msg-me {
-            align-self: flex-end;
-            background: var(--chat-bubble-me);
-            color: white;
-            border-bottom-right-radius: 2px;
-        }
+        .msg-me { align-self: flex-end; background: var(--chat-bubble-me); color: white; border-bottom-right-radius: 2px; }
+        .msg-them { align-self: flex-start; background: var(--chat-bubble-them); color: #e2e8f0; border-bottom-left-radius: 2px; }
 
-        .msg-them {
-            align-self: flex-start;
-            background: var(--chat-bubble-them);
-            color: #e2e8f0;
-            border-bottom-left-radius: 2px;
-        }
+        .input-area { display: flex; gap: 10px; }
+        .input-area input { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #374151; background: #1f2937; color: white; outline: none; }
+        .input-area button { padding: 0 20px; background: #2563eb; border: none; border-radius: 12px; color: white; font-weight: bold; cursor: pointer; }
 
-        .input-area {
-            display: flex;
-            gap: 10px;
-        }
-
-        .input-area input {
-            flex: 1;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid #374151;
-            background: #1f2937;
-            color: white;
-            outline: none;
-        }
-
-        .input-area button {
-            padding: 0 20px;
-            background: #2563eb;
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        /* --- MODO MÓVIL (VERTICAL) --- */
+        /* --- MÓVIL --- */
         @media (max-width: 768px) {
-            .main-container {
-                flex-direction: column;
-                height: auto;
-            }
-
-            .video-card {
-                width: 100%;
-                height: 35vh; 
-                min-height: 250px;
-            }
-            
-            /* Ajuste para que el chat no se coma toda la pantalla al abrir teclado */
+            .main-container { flex-direction: column; height: auto; }
+            .video-card { width: 100%; height: 35vh; min-height: 250px; }
             .chat-window { height: 180px; }
         }
     </style>
 </head>
 <body>
 
-    <h1>NeoConnect</h1>
+    <h1>NeoConnect <span style="font-size: 0.6em; color: #0f0; font-family: 'VT323';">V.2.0</span></h1>
 
     <div class="main-container">
         <div class="video-card">
@@ -209,23 +229,25 @@
         <div class="video-card">
             <video id="remote-video" autoplay playsinline></video>
             <div class="badge" style="color: var(--primary);">• EXTRAÑO</div>
+            
+            <div id="tv-overlay" class="tv-static">
+                <div class="tv-noise"></div>
+                <div class="scanlines"></div>
+                <div class="tv-text">BUSCANDO SEÑAL...</div>
+            </div>
         </div>
     </div>
 
     <div class="controls-panel">
-        <div id="status-msg" class="status-text">Conectando al servidor...</div>
+        <div id="status-msg" class="status-text">Sistema listo.</div>
         <button id="btn-start" class="main-btn" onclick="buscarPareja()">BUSCAR EXTRAÑO</button>
         <button id="btn-stop" class="main-btn" onclick="cortarLlamada()" style="background: #334155; display: none;">DETENER</button>
     </div>
 
     <div class="chat-section" id="chat-section">
-        <div class="chat-window" id="chat-window">
-            <div class="msg msg-them" style="background: transparent; color: #64748b; font-size: 0.8rem;">
-                Chat conectado. Di hola.
-            </div>
-        </div>
+        <div class="chat-window" id="chat-window"></div>
         <div class="input-area">
-            <input type="text" id="msg-input" placeholder="Escribe un mensaje..." onkeypress="if(event.key === 'Enter') enviarMensaje()">
+            <input type="text" id="msg-input" placeholder="Escribe aquí..." onkeypress="if(event.key === 'Enter') enviarMensaje()">
             <button onclick="enviarMensaje()">➤</button>
         </div>
     </div>
@@ -242,8 +264,8 @@
 
         let peer = null;
         let localStream = null;
-        let currentCall = null;     // Conexión de Video
-        let currentDataConn = null; // Conexión de Texto (Chat)
+        let currentCall = null;
+        let currentDataConn = null;
 
         const statusMsg = document.getElementById('status-msg');
         const btnStart = document.getElementById('btn-start');
@@ -251,8 +273,8 @@
         const chatSection = document.getElementById('chat-section');
         const chatWindow = document.getElementById('chat-window');
         const msgInput = document.getElementById('msg-input');
+        const tvOverlay = document.getElementById('tv-overlay'); // La capa de estática
 
-        // Configuración de cámara
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true })
             .then(stream => {
                 localStream = stream;
@@ -266,20 +288,14 @@
 
         function iniciarPeer() {
             peer = new Peer(undefined, peerConfig);
-
-            peer.on('open', (id) => {
-                statusMsg.innerText = "Listo. Pulsa Buscar.";
-                console.log("Mi ID: " + id);
-            });
-
-            // 1. Recibir llamada de VIDEO
+            peer.on('open', (id) => { console.log("ID: " + id); });
+            
             peer.on('call', call => {
                 if(currentCall) { call.close(); return; }
-                statusMsg.innerText = "¡Encontrado! Conectando vídeo...";
+                statusMsg.innerText = "¡Señal recibida!";
                 gestionarLlamada(call);
             });
 
-            // 2. Recibir conexión de CHAT
             peer.on('connection', conn => {
                 if(currentDataConn) { conn.close(); return; }
                 gestionarChat(conn);
@@ -288,8 +304,8 @@
             peer.on('error', err => {
                 console.error(err);
                 if(err.type === 'peer-unavailable') {
-                    statusMsg.innerText = "Usuario desconectado. Reintentando...";
-                    setTimeout(buscarPareja, 1500);
+                    // Si falla, seguimos mostrando estática y reintentamos
+                    setTimeout(buscarPareja, 2000);
                 }
             });
         }
@@ -297,7 +313,10 @@
         async function buscarPareja() {
             if (!peer || !peer.id) return;
             
-            statusMsg.innerText = "Buscando...";
+            // 1. ACTIVAR MODO TV ANTIGUA
+            tvOverlay.style.display = 'block'; 
+            statusMsg.innerText = "Sintonizando frecuencia...";
+            
             btnStart.disabled = true;
             btnStart.style.opacity = "0.7";
 
@@ -307,69 +326,60 @@
                 const extraños = usuarios.filter(id => id !== peer.id);
 
                 if (extraños.length === 0) {
-                    statusMsg.innerText = "Nadie online. Espera...";
-                    btnStart.disabled = false;
-                    btnStart.style.opacity = "1";
+                    statusMsg.innerText = "Sin señal. Reintentando...";
+                    // Mantenemos la estática un poco más
+                    setTimeout(() => {
+                        btnStart.disabled = false;
+                        btnStart.style.opacity = "1";
+                        tvOverlay.style.display = 'none'; // Apagamos si no hay nadie
+                    }, 2000);
                     return;
                 }
 
                 const randomId = extraños[Math.floor(Math.random() * extraños.length)];
                 
-                statusMsg.innerText = "Conectando...";
-                
-                // INICIAR AMBAS CONEXIONES (Video y Chat)
                 const call = peer.call(randomId, localStream);
-                const conn = peer.connect(randomId); // Conexión de datos
+                const conn = peer.connect(randomId);
 
                 gestionarLlamada(call);
                 gestionarChat(conn);
 
             } catch (error) {
                 console.error(error);
-                statusMsg.innerText = "Error del servidor.";
+                statusMsg.innerText = "Error de antena (Server).";
                 btnStart.disabled = false;
                 btnStart.style.opacity = "1";
+                tvOverlay.style.display = 'none';
             }
         }
 
-        // --- LÓGICA DE VIDEO ---
         function gestionarLlamada(call) {
             currentCall = call;
-            mostrarInterfazConectado();
             call.answer(localStream);
+            
+            // Cuando llega el video REAL, quitamos la estática
             call.on('stream', remoteStream => {
-                document.getElementById('remote-video').srcObject = remoteStream;
+                // Pequeño delay para dar efecto dramático
+                setTimeout(() => {
+                    tvOverlay.style.display = 'none';
+                    document.getElementById('remote-video').srcObject = remoteStream;
+                    mostrarInterfazConectado();
+                }, 1000);
             });
+            
             call.on('close', cortarLlamada);
         }
 
-        // --- LÓGICA DE CHAT ---
         function gestionarChat(conn) {
             currentDataConn = conn;
-            
-            conn.on('open', () => {
-                console.log("Chat abierto");
-                // Limpiar chat anterior
-                chatWindow.innerHTML = '<div class="msg msg-them" style="background:transparent; color:#64748b;">Chat conectado.</div>';
-            });
-
-            conn.on('data', data => {
-                agregarMensaje(data, 'them');
-            });
-
-            conn.on('close', () => {
-                console.log("Chat cerrado");
-            });
+            conn.on('open', () => { chatWindow.innerHTML = ''; });
+            conn.on('data', data => { agregarMensaje(data, 'them'); });
         }
 
         function enviarMensaje() {
             const texto = msgInput.value.trim();
             if (!texto || !currentDataConn) return;
-
-            // Enviar al otro
             currentDataConn.send(texto);
-            
-            // Mostrar en mi pantalla
             agregarMensaje(texto, 'me');
             msgInput.value = '';
         }
@@ -379,19 +389,15 @@
             div.className = `msg msg-${tipo}`;
             div.innerText = texto;
             chatWindow.appendChild(div);
-            chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll abajo
+            chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
-        // --- INTERFAZ ---
         function mostrarInterfazConectado() {
             btnStart.style.display = 'none';
             btnStop.style.display = 'block';
-            chatSection.style.display = 'flex'; // Mostrar chat
-            statusMsg.innerText = "Conectado.";
-            // Scroll hacia el chat para que se vea en móvil
-            setTimeout(() => {
-                chatSection.scrollIntoView({ behavior: 'smooth' });
-            }, 500);
+            chatSection.style.display = 'flex';
+            statusMsg.innerText = "Conexión estable.";
+            setTimeout(() => { chatSection.scrollIntoView({ behavior: 'smooth' }); }, 500);
         }
 
         function cortarLlamada() {
@@ -402,11 +408,12 @@
             currentDataConn = null;
             document.getElementById('remote-video').srcObject = null;
             
-            statusMsg.innerText = "Llamada finalizada.";
+            // Volver a estado normal
+            tvOverlay.style.display = 'none';
+            statusMsg.innerText = "Transmisión finalizada.";
             btnStart.style.display = 'block';
             btnStop.style.display = 'none';
-            chatSection.style.display = 'none'; // Ocultar chat
-            
+            chatSection.style.display = 'none';
             btnStart.disabled = false;
             btnStart.style.opacity = "1";
         }
