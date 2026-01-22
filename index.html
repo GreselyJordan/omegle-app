@@ -3,211 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeoConnect - Videochat P2P</title>
+    <title>Chat Aleatorio</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --primary: #6366f1;
-            --accent: #8b5cf6;
-            --text: #f8fafc;
-        }
-
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.2) 0%, transparent 20%),
-                              radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.2) 0%, transparent 20%);
-            color: var(--text);
-            margin: 0;
-            height: 100vh;
+            background-color: #0f172a;
+            color: #f8fafc;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
         }
 
-        h1 { font-weight: 600; letter-spacing: -1px; margin-bottom: 30px; }
-
-        .main-container {
-            width: 90%;
-            max-width: 1000px;
+        .video-container {
             display: flex;
-            flex-direction: column;
-            gap: 20px;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            max-width: 1200px;
+            height: 70vh;
         }
 
-        .videos-wrapper {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-
-        .video-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 16px;
-            padding: 10px;
+        .video-wrapper {
+            flex: 1;
+            background: #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
             position: relative;
-            aspect-ratio: 16/9;
-            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         video {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 12px;
-            background: #000;
+            transform: scaleX(-1); /* Efecto espejo */
         }
 
-        .badge {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            backdrop-filter: blur(4px);
+        .controls {
+            margin-top: 20px;
+            text-align: center;
         }
-
-        .controls-panel {
-            background: var(--card-bg);
-            padding: 20px;
-            border-radius: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .input-group {
-            display: flex;
-            gap: 10px;
-            width: 100%;
-            max-width: 500px;
-        }
-
-        input {
-            flex: 1;
-            padding: 12px 20px;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background: rgba(15, 23, 42, 0.5);
-            color: white;
-            outline: none;
-            transition: border-color 0.3s;
-        }
-        input:focus { border-color: var(--primary); }
 
         button {
-            padding: 12px 24px;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            border: none;
-            border-radius: 8px;
+            background: #e11d48;
             color: white;
-            font-weight: 600;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 0 20px rgba(225, 29, 72, 0.5);
+            transition: all 0.3s;
         }
 
-        .status-text { color: #94a3b8; font-size: 0.9rem; }
-        .my-id-display { color: var(--primary); font-weight: bold; cursor: pointer; }
+        button:hover { transform: scale(1.05); background: #be123c; }
+        button:disabled { background: #64748b; cursor: not-allowed; box-shadow: none;}
+
+        .status { margin-top: 15px; color: #94a3b8; font-size: 0.9rem; }
+        .tag { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 5px; font-size: 0.8rem;}
     </style>
 </head>
 <body>
 
-    <div class="main-container">
-        <header style="text-align: center;">
-            <h1>NeoConnect <span style="font-size: 0.5em; color: var(--accent);">P2P</span></h1>
-        </header>
-
-        <div class="videos-wrapper">
-            <div class="video-card">
-                <video id="local-video" autoplay muted playsinline></video>
-                <div class="badge">Tú</div>
-            </div>
-            <div class="video-card">
-                <video id="remote-video" autoplay playsinline></video>
-                <div class="badge">Remoto</div>
-            </div>
+    <div class="video-container">
+        <div class="video-wrapper">
+            <video id="remote-video" autoplay playsinline></video>
+            <div class="tag">Extraño</div>
         </div>
-
-        <div class="controls-panel">
-            <div class="status-text">
-                Tu ID: <span id="my-id" class="my-id-display">Generando...</span> 
-                <span id="copy-msg" style="display:none; color: #4ade80; margin-left: 10px;">¡Copiado!</span>
-            </div>
-            
-            <div class="input-group">
-                <input type="text" id="remote-id-input" placeholder="Pega el ID de tu amigo aquí...">
-                <button onclick="llamarUsuario()">Llamar ahora</button>
-            </div>
-            <div id="status-msg" class="status-text">Esperando acción...</div>
+        <div class="video-wrapper" style="max-width: 200px; position: absolute; bottom: 20px; right: 20px; height: 150px; border: 2px solid rgba(255,255,255,0.2); z-index: 10;">
+            <video id="local-video" autoplay muted playsinline></video>
+            <div class="tag">Tú</div>
         </div>
     </div>
 
+    <div class="controls">
+        <button id="btn-start" onclick="buscarPareja()">BUSCAR EXTRAÑO</button>
+        <button id="btn-stop" onclick="cortarLlamada()" style="background: #334155; display: none;">DETENER</button>
+        <div class="status" id="status-msg">Conectando con el servidor...</div>
+    </div>
+
     <script>
-        // CONFIGURACIÓN IMPORTANTE:
-        // Si usas tu propio backend, cambia esto. Si lo dejas vacío, usa la nube gratis de PeerJS.
+        // --- CONFIGURACIÓN CRÍTICA ---
+        // Cambia esto por TU URL de Render (sin https://)
+        const SERVER_URL = 'tu-app-en-render.onrender.com'; 
+        
         const peerConfig = {
-            host: 'https://backend-omegle-17xd.onrender.com',
+            host: SERVER_URL,
             port: 443,
             path: '/myapp',
             secure: true
         };
 
-        const peer = new Peer(undefined, peerConfig); 
-        const localVideo = document.getElementById('local-video');
-        const remoteVideo = document.getElementById('remote-video');
+        let peer = null;
+        let localStream = null;
+        let currentCall = null;
         const statusMsg = document.getElementById('status-msg');
-        let localStream;
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
 
-        // Copiar ID al hacer click
-        document.getElementById('my-id').addEventListener('click', function() {
-            navigator.clipboard.writeText(this.innerText);
-            document.getElementById('copy-msg').style.display = 'inline';
-            setTimeout(() => document.getElementById('copy-msg').style.display = 'none', 2000);
-        });
+        // 1. Iniciar cámara
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(stream => {
+                localStream = stream;
+                document.getElementById('local-video').srcObject = stream;
+                iniciarPeer();
+            })
+            .catch(err => {
+                statusMsg.innerText = "Error: Necesitamos permiso de cámara y micrófono.";
+            });
 
-        peer.on('open', (id) => {
-            document.getElementById('my-id').innerText = id;
-            statusMsg.innerText = "Sistema listo. Comparte tu ID para empezar.";
-        });
+        function iniciarPeer() {
+            peer = new Peer(undefined, peerConfig);
 
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-            localStream = stream;
-            localVideo.srcObject = stream;
+            peer.on('open', (id) => {
+                statusMsg.innerText = "¡En línea! Pulsa buscar para encontrar a alguien.";
+                console.log("Mi ID: " + id);
+            });
 
+            // Si alguien nos encuentra a nosotros
             peer.on('call', call => {
-                statusMsg.innerText = "Conexión entrante... Estableciendo enlace.";
-                call.answer(stream);
-                call.on('stream', remoteStream => {
-                    remoteVideo.srcObject = remoteStream;
-                    statusMsg.innerText = "Conexión encriptada establecida.";
-                });
+                if(currentCall) { 
+                    call.close(); // Si ya estoy hablando, rechazo
+                    return; 
+                }
+                statusMsg.innerText = "¡Alguien te encontró!";
+                contestartLlamada(call);
             });
-        });
 
-        function llamarUsuario() {
-            const remoteId = document.getElementById('remote-id-input').value;
-            if (!remoteId) return;
-            statusMsg.innerText = "Buscando usuario...";
-            const call = peer.call(remoteId, localStream);
-            call.on('stream', remoteStream => {
-                remoteVideo.srcObject = remoteStream;
-                statusMsg.innerText = "Conexión exitosa.";
+            peer.on('error', err => {
+                console.error(err);
+                if(err.type === 'peer-unavailable') {
+                    statusMsg.innerText = "Usuario desconectado. Buscando otro...";
+                    setTimeout(buscarPareja, 2000); // Reintentar
+                } else {
+                    statusMsg.innerText = "Error de conexión. Revisa la consola.";
+                }
             });
+        }
+
+        async function buscarPareja() {
+            if (!peer || !peer.id) return;
+            
+            statusMsg.innerText = "Buscando usuarios online...";
+            btnStart.disabled = true;
+
+            try {
+                // Truco: Pedimos al servidor la lista de todos los conectados
+                const response = await fetch(`https://${SERVER_URL}/myapp/peerjs/peers`);
+                const usuarios = await response.json();
+
+                // Filtramos: Quitamos nuestro propio ID
+                const extraños = usuarios.filter(id => id !== peer.id);
+
+                if (extraños.length === 0) {
+                    statusMsg.innerText = "Nadie más está conectado. Esperando...";
+                    btnStart.disabled = false;
+                    return;
+                }
+
+                // Elegimos uno al azar
+                const randomId = extraños[Math.floor(Math.random() * extraños.length)];
+                
+                statusMsg.innerText = "Conectando con un extraño...";
+                const call = peer.call(randomId, localStream);
+                contestartLlamada(call);
+
+            } catch (error) {
+                console.error(error);
+                statusMsg.innerText = "Error al buscar usuarios (¿El servidor está despierto?)";
+                btnStart.disabled = false;
+            }
+        }
+
+        function contestartLlamada(call) {
+            currentCall = call;
+            
+            // Cambiar botones
+            btnStart.style.display = 'none';
+            btnStop.style.display = 'inline-block';
+
+            call.answer(localStream); // Responder
+            
+            call.on('stream', remoteStream => {
+                document.getElementById('remote-video').srcObject = remoteStream;
+                statusMsg.innerText = "Conectado con un extraño.";
+            });
+
+            call.on('close', () => {
+                cortarLlamada();
+            });
+        }
+
+        function cortarLlamada() {
+            if (currentCall) currentCall.close();
+            currentCall = null;
+            document.getElementById('remote-video').srcObject = null;
+            
+            btnStart.style.display = 'inline-block';
+            btnStop.style.display = 'none';
+            btnStart.disabled = false;
+            statusMsg.innerText = "Llamada finalizada.";
         }
     </script>
 </body>
