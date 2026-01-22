@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>NeoConnect - Retro TV</title>
+    <title>NeoConnect - Stable V.2.1</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=VT323&display=swap" rel="stylesheet">
     <style>
@@ -57,7 +57,7 @@
             overflow: hidden;
             flex: 1; 
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            background: #000; /* Fondo negro por si acaso */
+            background: #000; 
         }
 
         video {
@@ -81,7 +81,7 @@
             z-index: 10;
         }
 
-        /* --- EFECTO TV ANTIGUA (CSS PURO) --- */
+        /* --- EFECTO TV ANTIGUA --- */
         .tv-static {
             position: absolute;
             top: 0;
@@ -89,12 +89,11 @@
             width: 100%;
             height: 100%;
             z-index: 20;
-            display: none; /* Oculto por defecto */
+            display: none; 
             background: #111;
             overflow: hidden;
         }
 
-        /* Generamos el ruido con un gradiente repetido */
         .tv-noise {
             position: absolute;
             top: -50%;
@@ -113,8 +112,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: #0f0; /* Verde fósforo clásico */
-            font-family: 'VT323', monospace; /* Fuente retro */
+            color: #0f0; 
+            font-family: 'VT323', monospace; 
             font-size: 1.5rem;
             text-shadow: 0 0 5px #0f0;
             letter-spacing: 2px;
@@ -124,16 +123,9 @@
             width: 100%;
         }
 
-        @keyframes noise {
-            100% { background-position: 50% 0, 60% 50%; }
-        }
+        @keyframes noise { 100% { background-position: 50% 0, 60% 50%; } }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
-
-        /* Scanlines (Líneas horizontales) */
         .scanlines {
             width: 100%;
             height: 100%;
@@ -208,7 +200,6 @@
         .input-area input { flex: 1; padding: 12px; border-radius: 12px; border: 1px solid #374151; background: #1f2937; color: white; outline: none; }
         .input-area button { padding: 0 20px; background: #2563eb; border: none; border-radius: 12px; color: white; font-weight: bold; cursor: pointer; }
 
-        /* --- MÓVIL --- */
         @media (max-width: 768px) {
             .main-container { flex-direction: column; height: auto; }
             .video-card { width: 100%; height: 35vh; min-height: 250px; }
@@ -218,7 +209,7 @@
 </head>
 <body>
 
-    <h1>NeoConnect <span style="font-size: 0.6em; color: #0f0; font-family: 'VT323';">V.2.0</span></h1>
+    <h1>NeoConnect <span style="font-size: 0.6em; color: #0f0; font-family: 'VT323';">STABLE</span></h1>
 
     <div class="main-container">
         <div class="video-card">
@@ -239,7 +230,7 @@
     </div>
 
     <div class="controls-panel">
-        <div id="status-msg" class="status-text">Sistema listo.</div>
+        <div id="status-msg" class="status-text">Cargando sistema...</div>
         <button id="btn-start" class="main-btn" onclick="buscarPareja()">BUSCAR EXTRAÑO</button>
         <button id="btn-stop" class="main-btn" onclick="cortarLlamada()" style="background: #334155; display: none;">DETENER</button>
     </div>
@@ -255,11 +246,21 @@
     <script>
         const SERVER_URL = 'backend-omegle-17xd.onrender.com';
         
+        // --- AQUÍ ESTÁ EL TRUCO PARA MEJORAR CONEXIÓN ---
         const peerConfig = {
             host: SERVER_URL,
             port: 443,
             path: '/myapp',
-            secure: true
+            secure: true,
+            // Agregamos servidores STUN públicos de Google para atravesar routers
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' },
+                    { urls: 'stun:stun3.l.google.com:19302' },
+                    { urls: 'stun:stun4.l.google.com:19302' }
+                ]
+            }
         };
 
         let peer = null;
@@ -273,7 +274,7 @@
         const chatSection = document.getElementById('chat-section');
         const chatWindow = document.getElementById('chat-window');
         const msgInput = document.getElementById('msg-input');
-        const tvOverlay = document.getElementById('tv-overlay'); // La capa de estática
+        const tvOverlay = document.getElementById('tv-overlay');
 
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true })
             .then(stream => {
@@ -288,7 +289,10 @@
 
         function iniciarPeer() {
             peer = new Peer(undefined, peerConfig);
-            peer.on('open', (id) => { console.log("ID: " + id); });
+            peer.on('open', (id) => { 
+                statusMsg.innerText = "Sistema Online. Listo."; 
+                console.log("ID: " + id);
+            });
             
             peer.on('call', call => {
                 if(currentCall) { call.close(); return; }
@@ -302,10 +306,13 @@
             });
 
             peer.on('error', err => {
-                console.error(err);
+                console.error("Peer Error:", err);
                 if(err.type === 'peer-unavailable') {
-                    // Si falla, seguimos mostrando estática y reintentamos
+                    statusMsg.innerText = "Se perdió la señal. Reintentando...";
                     setTimeout(buscarPareja, 2000);
+                } else if (err.type === 'network' || err.type === 'disconnected') {
+                    statusMsg.innerText = "Fallo de red. Reconectando...";
+                    peer.reconnect();
                 }
             });
         }
@@ -313,31 +320,33 @@
         async function buscarPareja() {
             if (!peer || !peer.id) return;
             
-            // 1. ACTIVAR MODO TV ANTIGUA
             tvOverlay.style.display = 'block'; 
             statusMsg.innerText = "Sintonizando frecuencia...";
-            
             btnStart.disabled = true;
             btnStart.style.opacity = "0.7";
 
             try {
-                const response = await fetch(`https://${SERVER_URL}/myapp/peerjs/peers`);
+                // Truco: Agregamos un timestamp para que no nos de una lista "vieja" (cache)
+                const response = await fetch(`https://${SERVER_URL}/myapp/peerjs/peers?ts=${Date.now()}`);
+                if (!response.ok) throw new Error("Error en servidor");
+                
                 const usuarios = await response.json();
                 const extraños = usuarios.filter(id => id !== peer.id);
 
                 if (extraños.length === 0) {
                     statusMsg.innerText = "Sin señal. Reintentando...";
-                    // Mantenemos la estática un poco más
                     setTimeout(() => {
                         btnStart.disabled = false;
                         btnStart.style.opacity = "1";
-                        tvOverlay.style.display = 'none'; // Apagamos si no hay nadie
+                        tvOverlay.style.display = 'none';
                     }, 2000);
                     return;
                 }
 
+                // Intentamos conectar con uno al azar
                 const randomId = extraños[Math.floor(Math.random() * extraños.length)];
                 
+                // Iniciamos conexión con configuración robusta
                 const call = peer.call(randomId, localStream);
                 const conn = peer.connect(randomId);
 
@@ -346,7 +355,7 @@
 
             } catch (error) {
                 console.error(error);
-                statusMsg.innerText = "Error de antena (Server).";
+                statusMsg.innerText = "Error de servidor. Reintenta.";
                 btnStart.disabled = false;
                 btnStart.style.opacity = "1";
                 tvOverlay.style.display = 'none';
@@ -357,9 +366,7 @@
             currentCall = call;
             call.answer(localStream);
             
-            // Cuando llega el video REAL, quitamos la estática
             call.on('stream', remoteStream => {
-                // Pequeño delay para dar efecto dramático
                 setTimeout(() => {
                     tvOverlay.style.display = 'none';
                     document.getElementById('remote-video').srcObject = remoteStream;
@@ -367,6 +374,12 @@
                 }, 1000);
             });
             
+            // Si la llamada se cae o falla
+            call.on('error', (err) => {
+                console.error("Call error:", err);
+                cortarLlamada();
+            });
+
             call.on('close', cortarLlamada);
         }
 
@@ -396,7 +409,7 @@
             btnStart.style.display = 'none';
             btnStop.style.display = 'block';
             chatSection.style.display = 'flex';
-            statusMsg.innerText = "Conexión estable.";
+            statusMsg.innerText = "Conexión Encriptada Establecida.";
             setTimeout(() => { chatSection.scrollIntoView({ behavior: 'smooth' }); }, 500);
         }
 
@@ -408,7 +421,6 @@
             currentDataConn = null;
             document.getElementById('remote-video').srcObject = null;
             
-            // Volver a estado normal
             tvOverlay.style.display = 'none';
             statusMsg.innerText = "Transmisión finalizada.";
             btnStart.style.display = 'block';
