@@ -128,7 +128,7 @@ function iniciarPeer() {
             updateStatus("ESTABLISHING UPLINK...");
             gestionarLlamada(call);
         } else {
-            log("IGNORED INCOMING (NOT SEARCHING)");
+            log(`IGNORED INCOMING (Searching: ${isSearching}, Connected: ${isConnected})`);
             call.close(); // Reject the call
         }
     });
@@ -236,6 +236,14 @@ function gestionarLlamada(call, timeoutId = null) {
     call.on('stream', remoteStream => {
         if (timeoutId) clearTimeout(timeoutId);
         
+        // CRITICAL FIX: Check if we are still allowed to connect
+        // If the user cancelled (isSearching == false) and we are not yet connected, ABORT.
+        if (!isSearching && !isConnected) {
+            log("STREAM RECEIVED BUT SEARCH CANCELLED. ABORTING.");
+            call.close();
+            return;
+        }
+
         const videoElement = document.getElementById('remote-video');
         if (videoElement.srcObject === remoteStream) return;
 
