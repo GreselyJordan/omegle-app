@@ -157,7 +157,7 @@ function iniciarPeer() {
         if (isSearching && !isConnected) {
             log("INCOMING TRANSMISSION...");
             updateStatus("ESTABLISHING UPLINK...");
-            gestionarLlamada(call);
+            gestionarLlamada(call, null, true); // True = Incoming
         } else {
             log(`IGNORED INCOMING (Searching: ${isSearching}, Connected: ${isConnected})`);
             call.close(); // Reject the call
@@ -229,7 +229,7 @@ async function buscarPareja() {
                 }
             }, 5000);
 
-            gestionarLlamada(call, callTimeout);
+            gestionarLlamada(call, callTimeout, false); // False = Outgoing
             gestionarChat(conn);
 
         }, randomDelay);
@@ -253,7 +253,7 @@ function cancelarBusqueda() {
     log("SEARCH CANCELLED BY USER");
 }
 
-function gestionarLlamada(call, timeoutId = null) {
+function gestionarLlamada(call, timeoutId = null, isIncoming = false) {
     if (currentCall && currentCall.peer !== call.peer) {
         call.close();
         return;
@@ -261,8 +261,11 @@ function gestionarLlamada(call, timeoutId = null) {
 
     currentCall = call;
     
-    // Always answer, but the 'stream' event determines success
-    call.answer(localStream);
+    // ONLY answer if it is an incoming call. 
+    // If we are the caller, we already sent our stream in peer.call()
+    if (isIncoming) {
+        call.answer(localStream);
+    }
     
     call.on('stream', remoteStream => {
         if (timeoutId) clearTimeout(timeoutId);
