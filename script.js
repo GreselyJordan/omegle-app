@@ -55,31 +55,73 @@ async function getMediaStream(facingMode = 'user') {
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
         }
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: facingMode }, 
-            audio: true 
-        });
-        localStream = stream;
-        document.getElementById('local-video').srcObject = stream;
-        
-        if (isMicMuted) {
-            localStream.getAudioTracks()[0].enabled = false;
+
+        // Strategy 1: Try preferred settings
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: facingMode }, 
+                audio: true 
+            });
+            return handleSuccess(stream);
+        } catch (err) {
+            log("Preferred config failed. Trying fallback...");
         }
 
-        if (currentCall) {
-            const videoTrack = stream.getVideoTracks()[0];
-            const sender = currentCall.peerConnection.getSenders().find((s) => s.track.kind === videoTrack.kind);
-            if (sender) {
-                sender.replaceTrack(videoTrack);
-            }
+        // Strategy 2: Try basic settings (no facing mode)
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: true, 
+                audio: true 
+            });
+            return handleSuccess(stream);
+        } catch (err) {
+            log("Basic config failed. Trying video only...");
         }
 
-        return stream;
+        // Strategy 3: Video only (maybe audio is blocked?)
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: true, 
+                audio: false 
+            });
+            log("WARNING: Audio access denied/unavailable.");
+            return handleSuccess(stream);
+        } catch (err) {
+            throw err; // All attempts failed
+        }
+
     } catch (err) {
-        log("MEDIA ERROR: " + err);
-        updateStatus("CAMERA ERROR");
+        log("CRITICAL MEDIA ERROR: " + err.name + " - " + err.message);
+        updateStatus("CAMERA BLOCKED/NOT FOUND");
+        
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+            alert("SECURITY ALERT: WebRTC requires HTTPS. Please use a secure connection.");
+        } else {
+            alert("Camera access failed. Please check browser permissions and ensure no other app is using the camera.");
+        }
         return null;
     }
+}
+
+function handleSuccess(stream) {
+    localStream = stream;
+    document.getElementById('local-video').srcObject = stream;
+    
+    // Restore mute state if needed
+    if (isMicMuted) {
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (audioTrack) audioTrack.enabled = false;
+    }
+
+    // If in a call, replace the track
+    if (currentCall) {
+        const videoTrack = stream.getVideoTracks()[0];
+        const sender = currentCall.peerConnection.getSenders().find((s) => s.track.kind === videoTrack.kind);
+        if (sender) {
+            sender.replaceTrack(videoTrack);
+        }
+    }
+    return stream;
 }
 
 function switchCamera() {
