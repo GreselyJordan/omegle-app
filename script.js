@@ -51,56 +51,45 @@ function log(text) {
 // --- MEDIA CONTROLS ---
 
 async function getMediaStream(facingMode = 'user') {
-    try {
-        if (localStream) {
-            localStream.getTracks().forEach(track => track.stop());
-        }
-
-        // Strategy 1: Try preferred settings
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: facingMode }, 
-                audio: true 
-            });
-            return handleSuccess(stream);
-        } catch (err) {
-            log("Preferred config failed. Trying fallback...");
-        }
-
-        // Strategy 2: Try basic settings (no facing mode)
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: true, 
-                audio: true 
-            });
-            return handleSuccess(stream);
-        } catch (err) {
-            log("Basic config failed. Trying video only...");
-        }
-
-        // Strategy 3: Video only (maybe audio is blocked?)
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: true, 
-                audio: false 
-            });
-            log("WARNING: Audio access denied/unavailable.");
-            return handleSuccess(stream);
-        } catch (err) {
-            throw err; // All attempts failed
-        }
-
-    } catch (err) {
-        log("CRITICAL MEDIA ERROR: " + err.name + " - " + err.message);
-        updateStatus("CAMERA BLOCKED/NOT FOUND");
-        
-        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-            alert("SECURITY ALERT: WebRTC requires HTTPS. Please use a secure connection.");
-        } else {
-            alert("Camera access failed. Please check browser permissions and ensure no other app is using the camera.");
-        }
-        return null;
+    // Stop previous tracks if any
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
     }
+
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    // Configuración progresiva
+    const constraintsSets = [
+        // 1. Configuración Ideal (si es móvil usa facingMode, si no, estándar)
+        { 
+            video: isMobile ? { facingMode: facingMode } : true, 
+            audio: true 
+        },
+        // 2. Configuración Básica (video y audio sin restricciones)
+        { video: true, audio: true },
+        // 3. Solo Video (por si el audio falla/está en uso)
+        { video: true, audio: false }
+    ];
+
+    for (const constraints of constraintsSets) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            return handleSuccess(stream);
+        } catch (err) {
+            log(`Intento fallido (${JSON.stringify(constraints)}): ${err.name}`);
+            // Continuar al siguiente intento...
+        }
+    }
+
+    // Si llegamos aquí, todo falló
+    updateStatus("CAMERA ERROR");
+    const errorMsg = "No se pudo acceder a la cámara.";
+    log("CRITICAL: " + errorMsg);
+    
+    // Alerta detallada para el usuario
+    alert(`ERROR DE CÁMARA:\nNo pudimos iniciar tu cámara.\n\nPosibles causas:\n1. Otra aplicación la está usando (Zoom, Meet, etc).\n2. No diste permisos (revisa el candado en la URL).\n3. Tu navegador bloquea el acceso.\n\nIntenta cerrar otras apps y recargar.`);
+    
+    return null;
 }
 
 function handleSuccess(stream) {
